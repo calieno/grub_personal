@@ -6,7 +6,7 @@ if [ "$grub_platform" = "efi" ]; then
         savedefault
         insmod part_gpt
         insmod fat
-        search --no-floppy --fs-uuid --set=root 7A8D-8E62
+        search --no-floppy --fs-uuid --set=root {{WIN_EFI_UUID}}
         chainloader /efi/Microsoft/Boot/bootmgfw.efi
     }
 fi

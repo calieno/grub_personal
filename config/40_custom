@@ -5,5 +5,11 @@ exec tail -n +3 $0
 # the 'exec tail' line above.
 
 menuentry "" --hotkey " " --class hidden {
-    configfile /boot/grub/grub_advanced.cfg
+    if [ -f "${prefix}/grub_advanced.cfg" ]; then
+        configfile "${prefix}/grub_advanced.cfg"
+    elif [ -f "/grub/grub_advanced.cfg" ]; then
+        configfile "/grub/grub_advanced.cfg"
+    elif [ -f "/boot/grub/grub_advanced.cfg" ]; then
+        configfile "/boot/grub/grub_advanced.cfg"
+    fi
 }

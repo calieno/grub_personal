@@ -53,9 +53,21 @@ if [ -z "$WIN_EFI_UUID" ]; then
     log_warn "Não foi possível auto-detectar o Windows EFI. Usando UUID padrão: $WIN_EFI_UUID"
 fi
 
-# 3. Detectar Partição Root do Arch Linux
+# 3. Detectar Partições Root e Boot do Arch Linux
 ROOT_UUID=$(findmnt -n -o UUID / 2>/dev/null || echo "9d50f516-f04a-4dfa-9669-b4686ce2b777")
 log_info "Partição raiz (root) do Linux: UUID=${ROOT_UUID}"
+
+BOOT_MOUNT=$(findmnt -n -o TARGET /boot 2>/dev/null || true)
+if [ -n "$BOOT_MOUNT" ]; then
+    BOOT_UUID=$(findmnt -n -o UUID /boot 2>/dev/null)
+    BOOT_PATH=""
+    BOOT_FSTYPE=$(findmnt -n -o FSTYPE /boot 2>/dev/null || echo "vfat")
+else
+    BOOT_UUID="$ROOT_UUID"
+    BOOT_PATH="/@"
+    BOOT_FSTYPE="btrfs"
+fi
+log_info "Partição de boot do Linux: UUID=${BOOT_UUID} (fstype: ${BOOT_FSTYPE}, caminho kernel: '${BOOT_PATH}/')"
 
 # 4. Instalar o Tema Vimix (grub2-themes)
 THEME_DIR="/boot/grub/themes/vimix"
@@ -91,10 +103,12 @@ cp "${CONFIG_DIR}/10_linux" /etc/grub.d/10_linux
 chmod 755 /etc/grub.d/10_linux
 
 # 15_windows apontando para o UUID detectado
-sed "s/7A8D-8E62/${WIN_EFI_UUID}/g" "${CONFIG_DIR}/15_windows" > /etc/grub.d/15_windows
+sed -e "s/{{WIN_EFI_UUID}}/${WIN_EFI_UUID}/g" \
+    -e "s/7A8D-8E62/${WIN_EFI_UUID}/g" \
+    "${CONFIG_DIR}/15_windows" > /etc/grub.d/15_windows
 chmod 755 /etc/grub.d/15_windows
 
-# 40_custom com gatilho para a barra de espaço
+# 40_custom com gatilho para a barra de espaço (com caminhos prefix/grub dinâmicos)
 cp "${CONFIG_DIR}/40_custom" /etc/grub.d/40_custom
 chmod 755 /etc/grub.d/40_custom
 
@@ -105,8 +119,12 @@ chmod 755 /etc/grub.d/40_custom
 
 # 8. Criar /boot/grub/grub_advanced.cfg atualizado com os UUIDs corretos
 log_info "Gerando /boot/grub/grub_advanced.cfg..."
-sed -e "s/7A8D-8E62/${WIN_EFI_UUID}/g" \
+sed -e "s/{{WIN_EFI_UUID}}/${WIN_EFI_UUID}/g" \
+    -e "s/7A8D-8E62/${WIN_EFI_UUID}/g" \
+    -e "s/{{ROOT_UUID}}/${ROOT_UUID}/g" \
     -e "s/9d50f516-f04a-4dfa-9669-b4686ce2b777/${ROOT_UUID}/g" \
+    -e "s/{{BOOT_UUID}}/${BOOT_UUID}/g" \
+    -e "s|{{BOOT_PATH}}|${BOOT_PATH}|g" \
     "${CONFIG_DIR}/grub_advanced.cfg" > /boot/grub/grub_advanced.cfg
 chmod 600 /boot/grub/grub_advanced.cfg
 
